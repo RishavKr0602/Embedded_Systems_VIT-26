@@ -1,0 +1,24 @@
+ecc-secure-embedded/
+├── .gitignore
+├── README.md
+├── LICENSE
+├── setup.sh
+├── requirements.txt
+├── ecc_core.py
+├── aes_gcm_encryption.py
+├── ecdsa_auth.py
+├── secure_boot.py
+├── secure_communication.py
+├── main_app.py
+├── test_crypto.py
+├── esp32_secure/
+│   ├── main/
+│   │   └── main.c
+│   ├── CMakeLists.txt
+│   └── sdkconfig
+├── arduino/
+│   └── ecc_arduino.ino
+└── docs/
+    ├── architecture.md
+    ├── api_reference.md
+    └── benchmarking_results.md
