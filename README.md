@@ -48,6 +48,57 @@ Power-On → Secure Boot → Key Generation → ECDH Exchange → HKDF Derive �
 **Challenge:** Preventing replay attacks without complex timestamp sync.  
 **Solution:** Nonce-based encryption with freshness validation.
 
+## Future Enhancements
+
+### 1. Post-Quantum Cryptography
+
+-  CRYSTALS-Dilithium
+-  SPHINCS+ Lattice-based Schemes
+-  Hybrid Cryptographic Scheme
+
+### 2. Hardware Security Module
+
+-  TPM 2.0 integration
+-  ARM Trust-Zone
+-  Hardware-Based Key Storage
+
+### 3. Multi-Device Mesh Networks
+
+-  Distributed Key Management
+-  Mesh Network Communication
+- Scalable device-to-device Authentication
+
+### 4. ML Anomaly Detection
+
+-  Real-time Breach Detection
+-  LSTM Neural Network Models
+-  Communication Pattern Analysis
+
+### 5. FIPS 140-3 Certification
+
+-  Industry standardization
+-  NIST validation
+-  Compliance documentation
+
+  ## Team
+
+| **Name** | **Email** |
+|:---:|:---:|
+| **Rishav Kumar** | 24bce1666@vit.ac.in |
+| **Jayaditya Dutta** | 24bce1586@vit.ac.in |
+| **Ayush Pathak** | 24bce1007@vit.ac.in |
+| **Sneha Selot** | 24bce1292@vit.ac.in |
+| **Albin Thomas Jiji** | 24bce1141@vit.ac.in |
+| **Arya Mishra** | 24bce1220@vit.ac.in |
+
+### Faculty Mentor
+
+| **Faculty Mentor** |
+|:---:|
+| **Dr. Balakrishnan R** |
+| School of Electronics Engineering |
+| Vellore Institute of Technology, Chennai Campus |
+
 # Academic References
 Elliptic Curve Cryptography for Embedded Systems
 IEEE Transactions on Computers
