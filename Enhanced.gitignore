@@ -1,0 +1,188 @@
+# ========================================
+# Python
+# ========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+*.log
+
+# ========================================
+# IDE / Editor
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.iml
+.project
+.classpath
+.settings/
+
+# ========================================
+# ESP-IDF
+# ========================================
+build/
+sdkconfig
+sdkconfig.old
+*.elf
+*.bin
+*.map
+*.o
+*.d
+*.a
+*.obj
+*.exe
+*.out
+dependencies.lock
+managed_components/
+components/
+.flash_*
+bootloader/
+partition_table/
+*.partitions
+*.bootloader
+
+# ========================================
+# Arduino
+# ========================================
+*.ino.cpp
+*.ino.o
+*.elf
+*.hex
+*.eep
+*.lss
+*.sym
+*.dmp
+*.lst
+*.srec
+*.bin
+*.map
+*.elf
+*.hex
+*.eep
+
+# ========================================
+# Hardware / Circuit
+# ========================================
+*.brd
+*.sch
+*.pcb
+*.kicad_pcb
+*.kicad_sch
+Gerber/
+*.gbr
+*.drl
+*.gko
+*.gto
+*.gts
+*.gtl
+*.gbl
+*.gbs
+*.gbo
+
+# ========================================
+# Cryptographic / Sensitive
+# ========================================
+*.key
+*.pem
+*.crt
+*.csr
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.truststore
+*.secret
+*.token
+credentials.json
+secrets.json
+config.local.json
+.env
+*.private
+private_keys/
+sensitive_data/
+
+# ========================================
+# Project Specific
+# ========================================
+# Firmware files
+firmware.bin
+firmware.sig
+*.sig
+*.hash
+
+# Log files
+*.log
+secure_log_*.txt
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Test artifacts
+/tmp/
+/test_results/
+/coverage/
+
+# ========================================
+# Raspberry Pi Specific
+# ========================================
+*.pyc
+*.pyo
+*.pyd
+*.pid
+*.lock
+RPi.GPIO-*.egg-info/
+
+# ========================================
+# Node.js (if any web interface)
+# ========================================
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+dist/
+build/
+
+# ========================================
+# Documentation Build
+# ========================================
+docs/_build/
+site/
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+
+# ========================================
+# OS / System
+# ========================================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.tmp
+*.temp
+*.bak
+*.backup
