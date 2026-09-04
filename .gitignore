@@ -217,3 +217,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+#Logs
+secure_log_NODE_B.txt
+secure_log_NODE_A.txt
