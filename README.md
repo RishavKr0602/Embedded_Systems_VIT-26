@@ -1,228 +1,305 @@
-# Embedded_Systems_VIT-26
-Secure Boot and Data Encryption implements an Elliptic Curve Cryptography (ECC)-based authentication protocol for resource-constrained embedded devices, replacing computationally intensive RSA (O(n³) complexity) with NIST P-256 curves achieving O(log n) complexity. The system integrates ECDH key exchange, HKDF-SHA256 session derivation, AES-256-GCM authenticated encryption, and ECDSA challenge-response authentication, validated on ESP32 and Raspberry Pi platforms. With 90% smaller keys (256-bit ECC = 3072-bit RSA), <200 bytes cryptographic state, and 100–1000× faster performance, it delivers RSA-equivalent security while being battery-friendly, making it ideal for IoT, medical, and industrial embedded systems requiring secure boot and encrypted communication.
+# Embedded Systems VIT-26
 
-# Problem Statement
-Embedded systems and IoT devices are deployed in security-critical environments — medical devices, industrial automation, smart homes, and connected vehicles — yet they remain alarmingly vulnerable. Conventional RSA cryptography is computationally infeasible on microcontrollers with kilobytes of RAM and milliwatts of power budget.
-<img width="4854" height="1075" alt="deepseek_mermaid_20260830_ada2e4" src="https://github.com/user-attachments/assets/e9ced741-edd1-45c7-acf1-d85b93a14d10" />
+A lightweight secure embedded communication framework built around ECC-based key establishment, firmware authentication, and ASCON-128a authenticated encryption. The project demonstrates how two devices can establish a secure session, authenticate each other, and exchange encrypted data while preserving integrity and freshness protections.
 
+## Overview
 
-# System Architecture
-# Complete Block Diagram 
+This repository implements a dual-node secure embedded prototype using:
 
-<img width="3525" height="3201" alt="deepseek_mermaid_20260830_6ca255" src="https://github.com/user-attachments/assets/2783ae76-7418-4d3c-878a-41a256d0c57a" />
+- ECDH for shared secret establishment
+- HKDF-SHA256 for session key derivation
+- ECDSA for device authentication and firmware signing
+- ASCON-128a for authenticated encryption
+- Secure boot verification using firmware hashing and signature validation
 
-# Data Flow Pipeline
-<img width="6129" height="231" alt="deepseek_mermaid_20260830_07ee29" src="https://github.com/user-attachments/assets/97166e60-6f16-49ba-95fd-4c9b5ec45438" />
-
-# State Machine
-<img width="1026" height="2559" alt="deepseek_mermaid_20260830_c02c5f" src="https://github.com/user-attachments/assets/67ad11f0-98be-4bf6-8e30-29e4eeaae0b4" />
-
-# Operational Data Flow
-Power-On → Secure Boot → Key Generation → ECDH Exchange → HKDF Derive → ECDSA Auth → AES-GCM Encrypt → Transmit → Decrypt & Verify → Secure Shutdown
-
-
-## Technology Stack
-
-### Hardware Components
-| **Component** | **Specification** | **Purpose** |
-|---|---|---|
-| **Raspberry Pi 4B** | Quad-core ARM @ 1.5 GHz, 4 GB RAM, 32 GB microSD | Primary processing unit |
-| **ESP32** | Dual-core Xtensa @ 240 MHz, 520 KB SRAM, Wi-Fi/BLE | Ultra-low power IoT node |
-| **OLED (SSD1306)** | 0.96" I²C, 128×64 px, monochrome | Real-time status display |
-| **LED Indicators** | Red / Green / Blue / Yellow (3–5 mm) | Visual feedback |
-| **EEPROM AT24C256** | 32 KB, I²C interface | Secure metadata storage |
-
-### Software Stack
-| **Category** | **Tool / Library** | **Purpose** |
-|---|---|---|
-| **OS / Framework** | Raspberry Pi OS 64-bit / ESP-IDF v5.0+ | Development framework |
-| **Cryptography** | OpenSSL / MbedTLS / PyCryptodome | ECC, ECDH, ECDSA, AES-GCM |
-| **Language** | Python 3.9+ / C | Application & firmware |
-| **Debugging** | PuTTY / Wireshark / OpenSSH | Serial terminal, analysis |
-
-
-# Cryptographic Libraries
-<img width="1007" height="3535" alt="deepseek_mermaid_20260830_d6515e" src="https://github.com/user-attachments/assets/46a86682-9558-416e-a910-60908d99af79" />
-
-##Project Completion Status
-#Overall Progress: 40% Complete
-<img width="1918" height="1485" alt="deepseek_mermaid_20260830_329170" src="https://github.com/user-attachments/assets/a5d89781-2ae4-42c3-9a3f-c1b4e195f774" />
-
-
-# Phase-wise Completion
-<img width="4060" height="1122" alt="deepseek_mermaid_20260830_735649" src="https://github.com/user-attachments/assets/2dcb84d2-dec7-4532-b60a-c26607a19f4c" />
-
-
-### Module Completion Status
-
-| **Module** | **Status** | **Lines of Code** | **Test Coverage** |
-|---|---|---:|---:|
-| ECC Core | Complete | 245 | 100% |
-| AES-GCM Encryption | In Progress | 60/118 | 50% |
-| ECDSA Authentication | Pending | 0/122 | - |
-| Secure Boot | Pending | 0/175 | - |
-| Secure Communication | Pending | 0/198 | - |
-| Main Application | Pending | 0/225 | - |
-| ESP32 Implementation | Pending | 0/320 | - |
-| Arduino Implementation | Pending | 0/210 | - |
-| Test Suite | In Progress | 100/250 | 40% |
+The current implementation targets a Raspberry Pi / Python prototype and includes ESP32 and Arduino-related components for porting and integration work. The cryptographic design is centered on the newer ASCON workflow rather than the older AES-GCM description used in the earlier project draft.
 
 ---
 
-### Current Focus Areas
+## Why This Project Exists
 
-| **Task** | **Priority** | **Status** | **Timeline** |
-|---|---|---|---|
-| ECC Core Implementation | High | Done | Week 5-6 |
-| ECDH Key Exchange | High | Done | Week 7-8 |
-| AES-GCM Encryption | High | 50% | Week 9-10 |
-| ECDSA Authentication | Medium | Pending | Week 9-10 |
-| Secure Boot | Medium | Pending | Week 11 |
-| System Integration | Medium | Pending | Week 12 |
+Embedded and IoT systems often operate in resource-constrained environments where traditional public-key cryptography and heavy authenticated encryption can be too costly. This project focuses on a practical secure-by-design model for devices such as:
+
+- industrial sensors
+- healthcare gateways
+- low-power edge nodes
+- secure boot-enabled microcontrollers
+
+The design balances security, compatibility, and implementation simplicity while remaining suitable for prototype research and educational demonstrations.
 
 ---
 
-### Next Milestones
+## Security Pipeline
 
-| **Milestone** | **Target Date** | **Deliverables** |
-|---|---|---|
-| **Review 2** | Week 8 | Functional ECDH with verified shared secret across both nodes |
-| **AES-GCM Completion** | Week 10 | End-to-end encrypted message exchange demonstrated |
-| **Secure Boot Integration** | Week 11 | Fault-tolerant boot with comprehensive error reporting |
-| **System Integration** | Week 12 | Fully integrated dual-node prototype operational |
-| **Final Review** | Week 14 | Live demo + complete project report |
+The implemented flow is:
 
+1. Firmware is hashed and signed during secure boot
+2. Device identities are generated using ECDSA
+3. Nodes exchange ECDH public keys
+4. Shared secret is computed
+5. HKDF derives a 128-bit session key
+6. ASCON-128a encrypts and authenticates payloads
+7. Peer authentication validates challenge-response signatures
+8. Sensitive state is cleared when the session ends
 
+Operationally, the flow is:
 
-## Platform-Specific Results
-| **Metric** | **Value** | **Status** |
-|---|---:|---|
-| ECC Key Generation | 8.2 ms | PASS |
-| ECDH Shared Secret | 12.4 ms | PASS |
-| HKDF Key Derivation | 0.8 ms | PASS |
-| AES-256-GCM (1KB) | 0.5 ms | PASS |
-| ECDSA Signature | 9.8 ms | PASS |
-| ECDSA Verification | 7.9 ms | PASS |
-| Secure Boot Time | 125 ms | PASS |
-| Memory Usage (RSS) | 2.4 MB | PASS |
-| CPU Usage (Peak) | 12% | PASS |
+Power on → Secure Boot → ECDH exchange → HKDF derivation → ECDSA authentication → ASCON-128a encryption → secure transmission → verification and decryption
 
-</details>
+---
 
-<details>
-<summary><b>ESP32 Results</b></summary>
+## Core Technologies
 
-| **Metric** | **Value** | **Status** |
-|---|---:|---|
-| ECC Key Generation | 15.6 ms | PASS |
-| ECDH Shared Secret | 22.3 ms | PASS |
-| HKDF Key Derivation | 1.2 ms | PASS |
-| AES-256-GCM (1KB) | 1.8 ms | PASS |
-| ECDSA Signature | 18.2 ms | PASS |
-| ECDSA Verification | 14.5 ms | PASS |
-| Secure Boot Time | 180 ms | PASS |
-| Memory Usage (Heap) | 180 bytes | PASS |
-| Power Consumption | 85 mA | PASS |
+| Category                 | Technology / Implementation | Role                                                |
+| ------------------------ | --------------------------- | --------------------------------------------------- |
+| Key exchange             | ECC (secp256r1 / P-256)     | ECDH shared secret generation                       |
+| Session key derivation   | HKDF-SHA256                 | Derives 128-bit ASCON key                           |
+| Identity and signing     | ECDSA                       | Device challenge-response and firmware verification |
+| Authenticated encryption | ASCON-128a                  | Encrypts and authenticates communication payloads   |
+| Secure boot              | SHA-256 + ECDSA signature   | Validates firmware integrity                        |
+| Runtime environment      | Python 3.x                  | Raspberry Pi prototype and validation               |
+| Embedded target          | ESP32 / Arduino             | Porting and device-side integration                 |
 
-</details>
+---
 
-## Challenges Faced & Solutions
-### 1. Memory Optimization on ESP32
+## Repository Structure
 
-**Challenge:** Implementing ECC P-256 on ESP32 with only 520 KB SRAM.  
-**Solution:** Reduced stack usage, minimized buffer copies, used static allocation.  
-**Result:** Memory reduced from 2.4 KB to <200 bytes.
+```text
+Embedded_Systems_VIT-26/
+├── README.md
+├── Demo_Full_Pipeline.py
+├── LICENSE
+├── secure_log_NODE_A.txt
+├── secure_log_NODE_B.txt
+├── ECC_Integration/
+│   ├── ECC_Core.py
+│   ├── ECDSA_Auth.py
+│   ├── ASCON_Encryption.py
+│   ├── Secure_Boot.py
+│   ├── Secure_Communication.py
+│   ├── Main.py
+│   └── AES_GCM_Encryption.py
+├── Arduino_Section/
+│   └── ECC_Arduino.ino
+├── ESP_32_Config/
+│   ├── ESP32_Main.bash
+│   ├── SetUp_ESP(32).bash
+│   ├── Make_Lists.txt
+│   └── SDKConfig.txt
+├── Validation/
+│   └── Test_Crypto.py
+├── Project_Archieves/
+└── Project Structure
+```
 
-### 2. Shared Secret Verification
+---
 
-**Challenge:** Ensuring both nodes compute identical shared secrets.  
-**Solution:** Implemented ECDH point validation and SHA-256 verification.
+## Project Modules
 
-### 3. Cross-Platform Compatibility
+### 1. ECC Core
 
-**Challenge:** Different crypto libraries across platforms (MbedTLS, OpenSSL, PyCryptodome).  
-**Solution:** Created abstraction layer, standardized data formats with ASN.1.
+File: `ECC_Integration/ECC_Core.py`
 
-### 4. Secure Boot Implementation
+Implements:
 
-**Challenge:** Verifying firmware integrity before code execution.  
-**Solution:** Early-stage ECDSA verification with fallback to known-good firmware.
+- ECC key pair generation
+- ECDH shared secret computation
+- HKDF-derived session key generation
+- secure memory cleanup routine
 
-### 5. Replay Attack Prevention
+This module is the foundation for node-to-node secure session establishment.
 
-**Challenge:** Preventing replay attacks without complex timestamp sync.  
-**Solution:** Nonce-based encryption with freshness validation.
+### 2. ECDSA Authentication
 
-## Future Enhancements
+File: `ECC_Integration/ECDSA_Auth.py`
 
-### 1. Post-Quantum Cryptography
+Implements:
 
--  CRYSTALS-Dilithium
--  SPHINCS+ Lattice-based Schemes
--  Hybrid Cryptographic Scheme
+- ECDSA key generation for device identity
+- challenge-response signing
+- signature verification against peer public keys
 
-### 2. Hardware Security Module
+This supports mutual authentication between nodes before encrypted communication begins.
 
--  TPM 2.0 integration
--  ARM Trust-Zone
--  Hardware-Based Key Storage
+### 3. ASCON Encryption
 
-### 3. Multi-Device Mesh Networks
+File: `ECC_Integration/ASCON_Encryption.py`
 
--  Distributed Key Management
--  Mesh Network Communication
-- Scalable device-to-device Authentication
+Implements the ASCON-128a AEAD layer.
 
-### 4. ML Anomaly Detection
+Key properties:
 
--  Real-time Breach Detection
--  LSTM Neural Network Models
--  Communication Pattern Analysis
+- 128-bit session key
+- 128-bit nonce
+- 128-bit authentication tag
+- integrity and authenticity checks during decryption
+- rejects tampering with ciphertext, tag, or associated data
 
-### 5. FIPS 140-3 Certification
+This is the current preferred authenticated encryption mechanism in the project and replaces the earlier AES-GCM-centric flow in the original documentation.
 
--  Industry standardization
--  NIST validation
--  Compliance documentation
+### 4. Secure Boot
 
-  ## Our Project Team
+File: `ECC_Integration/Secure_Boot.py`
 
-| **Name** | **Email** |
-|:---:|:---:|
-| **Rishav Kumar** | 
-| **Jayaditya Dutta** | 
-| **Ayush Pathak** |
-| **Sneha Selot** | 
-| **Albin Thomas Jiji** | 
-| **Arya Mishra** | 
+Implements:
 
-### Faculty Mentor
+- firmware hashing
+- ECDSA signing of firmware hash
+- public-key verification of signed firmware
+- tamper detection when firmware changes
 
-| **Faculty Mentor** |
-|:---:|
-| **Dr. Balakrishnan R** |
-| School of Electronics Engineering |
-| Vellore Institute of Technology, Chennai Campus |
+This models secure boot verification before a device is trusted to run software.
 
-# Academic References
-Elliptic Curve Cryptography for Embedded Systems
-IEEE Transactions on Computers
-[DOI: 10.1109/TC.2015.2458897]
+### 5. Secure Communication Pipeline
 
-NIST SP 800-56A: Recommendation for Pair-Wise Key-Establishment Schemes
-National Institute of Standards and Technology
-[https://doi.org/10.6028/NIST.SP.800-56Ar3]
+File: `ECC_Integration/Secure_Communication.py`
 
-FIPS 197: Advanced Encryption Standard (AES)
-National Institute of Standards and Technology
-[https://doi.org/10.6028/NIST.FIPS.197]
+Combines:
 
-FIPS 186-5: Digital Signature Standard (DSS)
-National Institute of Standards and Technology
-[https://doi.org/10.6028/NIST.FIPS.186-5]
+- ECDH exchange
+- HKDF derivation
+- ECDSA peer authentication
+- ASCON message encryption and decryption
 
-NIST SP 800-38D: Recommendation for Block Cipher Modes of Operation: Galois/Counter Mode (GCM) and GMAC
-National Institute of Standards and Technology
-[https://doi.org/10.6028/NIST.SP.800-38D]
+This is the end-to-end secure communication layer used to simulate a protected session between two nodes.
 
-Each transition is cryptographically validated before proceeding to the next stage.
+### 6. Full Demo Runner
+
+File: `Demo_Full_Pipeline.py`
+
+Runs the end-to-end demonstration across the project modules. It shows a complete secure boot + ECDH + HKDF + ECDSA + ASCON workflow in a single script.
+
+### 7. Validation Suite
+
+File: `Validation/Test_Crypto.py`
+
+Covers:
+
+- ECC key generation
+- shared secret equality
+- HKDF key derivation length
+- ASCON encryption/decryption
+- associated-data validation
+- tamper detection
+- ECDSA signing and verification
+
+---
+
+## ASCON Update and Current Implementation Notes
+
+The project has moved from an older AES-GCM description to a modern lightweight AEAD design using ASCON-128a:
+
+- ASCON-128a is the NIST lightweight cryptography standard used for low-overhead authenticated encryption
+- the derived session key is 16 bytes (128 bits) for compatibility with ASCON
+- the Python implementation validates nonces and authentication tags before decryption
+- tampering with message data or the authentication tag raises a `ValueError`, ensuring integrity failure is detected immediately
+
+This makes the design better aligned with constrained embedded deployments and the architecture described in the active implementation files.
+
+---
+
+## Quick Start
+
+From the project root, run:
+
+```bash
+python Demo_Full_Pipeline.py
+```
+
+To run the validation suite:
+
+```bash
+python -m unittest discover -s Validation
+```
+
+You can also run the individual module demos directly, for example:
+
+```bash
+python ECC_Integration/ASCON_Encryption.py
+python ECC_Integration/Secure_Boot.py
+python ECC_Integration/ECDSA_Auth.py
+```
+
+---
+
+## ESP32 and Arduino Notes
+
+The project includes:
+
+- `ESP_32_Config/` with setup and build scripts
+- `Arduino_Section/ECC_Arduino.ino` for embedded microcontroller experimentation
+
+Important note:
+
+- the Python implementation of ASCON is used on the Raspberry Pi side
+- the ESP32 requires a native C ASCON + mbedTLS port or equivalent embedded-side equivalent for direct deployment
+
+This project therefore represents a hybrid prototype architecture: Python-based validation and simulation, plus embedded-side adaptation files for hardware integration.
+
+---
+
+## Security Properties
+
+The implemented design aims to provide:
+
+- confidentiality through authenticated encryption
+- integrity protection via ASCON authentication tags
+- mutual authentication via ECDSA challenge-response
+- session freshness via unique nonces
+- firmware trust via secure boot verification
+
+---
+
+## Current Project State
+
+The codebase is functionally structured around the secure pipeline described above. The active implementation currently includes:
+
+- ECC key exchange and HKDF session derivation
+- ECDSA signing and verification
+- ASCON AEAD encryption/decryption
+- secure boot verification flow
+- full demonstration pipeline
+- unit-style validation tests for the crypto stack
+
+This project is best understood as a practical embedded security prototype and educational implementation rather than a production-ready device stack.
+
+---
+
+## Future Directions
+
+Possible next steps include:
+
+- ESP32-native ASCON integration
+- secure message framing and packet serialization
+- real transport-layer handshake between Pi and ESP32
+- hardware key storage and secure provisioning
+- optimization for low-memory MCU deployment
+- formal adversarial testing for replay, tamper, and downgrade attacks
+
+---
+
+## Team
+
+- Rishav Kumar
+- Jayaditya Dutta
+- Ayush Pathak
+- Sneha Selot
+- Albin Thomas Jiji
+- Arya Mishra
+
+Faculty Mentor: Dr. Balakrishnan R  
+School of Electronics Engineering  
+Vellore Institute of Technology, Chennai Campus
+
+---
+
+## References
+
+- NIST SP 800-56A: Recommendation for Pair-Wise Key-Establishment Schemes
+- FIPS 186-5: Digital Signature Standard (DSS)
+- ASCON lightweight cryptography material and NIST lightweight cryptography guidance
+- ECC and embedded security literature relevant to ECDH, ECDSA, and secure boot design
+
+---
+
+This project demonstrates a complete secure embedded communication concept using ECC, ECDSA, HKDF, and ASCON-128a in a practical prototype architecture for research, teaching, and embedded-system experimentation.
