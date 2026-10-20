@@ -4,15 +4,46 @@ Comprehensive Cryptographic Testing Suite
 Tests: ECC Core, ASCON-128a AEAD, Secure Boot, ECDSA Authentication
 
 These tests cover the cryptographic primitives used by the Pi deployment.
+
+Every test is hermetic: nothing is written into the source tree. Secure-boot
+tests work entirely inside a ``tempfile`` directory so an interrupted run can
+never leave a stray ``*.bin`` artifact behind in ``Validation/``.
 """
 
-import unittest
-import os
+import glob
 import hashlib
-from ECC_Integration.ECC_Core import ECCCore
-from ECC_Integration.ASCON_Encryption import ASCONEncryption
-from ECC_Integration.ECDSA_Auth import ECDSAAuthentication
-from ECC_Integration.Secure_Boot import SecureBoot, generate_signing_keys
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+
+# Make the suite runnable from ANY working directory. ``unittest discover -s
+# <dir>`` puts the *start* directory on sys.path, not the repository root, so
+# ``import ECC_Integration`` would otherwise only resolve when the current
+# directory happens to be the repository root. (``Validation/__init__.py`` is
+# not sufficient on its own: without an explicit ``-t``, unittest sets the
+# top-level directory to the start directory itself.)
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from ECC_Integration.ECC_Core import ECCCore  # noqa: E402
+from ECC_Integration.ASCON_Encryption import ASCONEncryption  # noqa: E402
+from ECC_Integration.ECDSA_Auth import ECDSAAuthentication  # noqa: E402
+from ECC_Integration.Secure_Boot import (  # noqa: E402
+    SecureBoot,
+    generate_signing_keys,
+)
+
+VALIDATION_DIR = os.path.dirname(os.path.abspath(__file__))
+ASCON_MODULE_PATH = os.path.join(
+    REPO_ROOT, "ECC_Integration", "ASCON_Encryption.py"
+)
+REQUIREMENTS_PATH = os.path.join(REPO_ROOT, "requirements.txt")
+
 
 class TestECCCore(unittest.TestCase):
     """Test ECC Core functionality"""
@@ -51,6 +82,7 @@ class TestECCCore(unittest.TestCase):
         shared_secret = hashlib.sha256(b"test").digest()
         key = node.derive_session_key(shared_secret)
         self.assertEqual(len(key), 16)  # 128-bit key for ASCON-128a
+
 
 class TestASCON(unittest.TestCase):
     """Test ASCON-128a authenticated encryption"""
@@ -152,16 +184,37 @@ class TestASCON(unittest.TestCase):
         nonce, _, _ = self.ascon.encrypt(message)
         self.assertEqual(len(nonce), 16)
 
+
 class TestSecureBoot(unittest.TestCase):
-    """Test Secure Boot functionality"""
+    """Test Secure Boot functionality.
+
+    Everything happens inside a per-test temporary directory. The previous
+    version of this class wrote ``test_firmware.bin`` next to the test file and
+    removed it in ``tearDown``, so a crash or Ctrl-C left the artifact behind in
+    the source tree. Nothing here ever touches the repository.
+    """
 
     def setUp(self):
-        self.firmware_path = os.path.join(os.path.dirname(__file__), "test_firmware.bin")
-        with open(self.firmware_path, 'wb') as f:
-            f.write(b"Test firmware content")
+        self.workdir = tempfile.mkdtemp(prefix="secure-boot-test-")
+        self.addCleanup(shutil.rmtree, self.workdir, True)
+
+        self.firmware_path = os.path.join(self.workdir, "firmware.bin")
+        self.signature_path = os.path.join(self.workdir, "firmware.bin.sig")
+        with open(self.firmware_path, "wb") as handle:
+            handle.write(b"Test firmware content")
 
         self.private_key, self.public_key = generate_signing_keys()
         self.sb = SecureBoot(self.firmware_path)
+
+    def test_firmware_artifact_lives_outside_the_source_tree(self):
+        """The firmware under test is never written inside the repository"""
+        real_workdir = os.path.realpath(self.workdir)
+        real_validation = os.path.realpath(VALIDATION_DIR)
+        self.assertFalse(
+            real_workdir.startswith(real_validation + os.sep),
+            f"temp firmware landed inside the source tree: {real_workdir}",
+        )
+        self.assertTrue(os.path.isfile(self.firmware_path))
 
     def test_firmware_signing_and_verification(self):
         """Test firmware signing and verification"""
@@ -177,9 +230,131 @@ class TestSecureBoot(unittest.TestCase):
         valid, hash_val = self.sb.verify_firmware(self.public_key)
         self.assertTrue(valid)
 
-    def tearDown(self):
-        if os.path.exists(self.firmware_path):
-            os.remove(self.firmware_path)
+    def test_signature_survives_a_file_round_trip(self):
+        """A signature written to disk and reloaded still verifies"""
+        self.sb.compute_firmware_hash()
+        self.sb.sign_firmware(self.private_key)
+        self.sb.signature_path = self.signature_path
+        self.assertTrue(self.sb.save_signature_to_file())
+
+        reloaded = SecureBoot(self.firmware_path, self.signature_path)
+        reloaded.load_signature_from_file()
+        valid, digest = reloaded.verify_firmware(self.public_key)
+        self.assertTrue(valid, "reloaded signature must verify")
+        self.assertEqual(digest, self.sb.compute_firmware_hash())
+
+    def test_tampered_firmware_fails_verification(self):
+        """Changing the firmware after signing must break verification"""
+        self.sb.compute_firmware_hash()
+        signature = self.sb.sign_firmware(self.private_key)
+
+        with open(self.firmware_path, "ab") as handle:
+            handle.write(b"\nmalicious payload")
+
+        tampered = SecureBoot(self.firmware_path)
+        valid, _ = tampered.verify_firmware(self.public_key, signature)
+        self.assertFalse(valid, "a modified artifact must not verify")
+
+    def test_signature_from_another_key_is_rejected(self):
+        """A signature made with a different key must not verify"""
+        self.sb.compute_firmware_hash()
+        other_private, _ = generate_signing_keys()
+        signature = self.sb.sign_firmware(other_private)
+        valid, _ = self.sb.verify_firmware(self.public_key, signature)
+        self.assertFalse(valid, "a foreign signature must not verify")
+
+    def test_verification_without_a_signature_raises(self):
+        """Verifying with no signature is a programming error, not a mismatch"""
+        with self.assertRaises(ValueError):
+            self.sb.verify_firmware(self.public_key)
+
+    def test_test_run_leaves_no_bin_files_in_validation_directory(self):
+        """Regression: an interrupted run must not leave *.bin in Validation/"""
+        stray = sorted(glob.glob(os.path.join(VALIDATION_DIR, "*.bin")))
+        self.assertEqual(
+            stray,
+            [],
+            f"the test run left firmware artifacts in {VALIDATION_DIR}: {stray}",
+        )
+        self.assertFalse(
+            os.path.exists(os.path.join(VALIDATION_DIR, "test_firmware.bin")),
+            "the old in-tree test_firmware.bin artifact has reappeared",
+        )
+
+
+class TestASCONDependency(unittest.TestCase):
+    """Regression: ASCON must not depend on the third-party ``ascon`` package.
+
+    ``requirements.txt`` used to pin a non-existent ``ascon`` release, which
+    made the whole install fail. The implementation is now pure standard
+    library, so it must import with no site-packages at all.
+    """
+
+    def _module_source(self):
+        with open(ASCON_MODULE_PATH, encoding="utf-8") as handle:
+            return handle.read()
+
+    def test_ascon_module_has_no_ascon_import(self):
+        """No import of the third-party `ascon` package appears in the source"""
+        source = self._module_source()
+        offenders = [
+            line.strip()
+            for line in source.splitlines()
+            if line.strip() == "import ascon"
+            or line.strip().startswith("import ascon.")
+            or line.strip().startswith("import ascon ")
+            or line.strip().startswith("from ascon ")
+            or line.strip().startswith("from ascon.")
+        ]
+        self.assertEqual(offenders, [], f"third-party ascon import found: {offenders}")
+        self.assertNotIn("import ascon", source)
+
+    def test_requirements_do_not_pin_ascon(self):
+        """requirements.txt must not ask pip for the non-existent ascon release"""
+        with open(REQUIREMENTS_PATH, encoding="utf-8") as handle:
+            lines = [
+                line.strip()
+                for line in handle
+                if line.strip() and not line.strip().startswith("#")
+            ]
+        for line in lines:
+            self.assertFalse(
+                line.split("=")[0].split(">")[0].split("<")[0].strip().lower()
+                == "ascon",
+                f"requirements.txt still pins the third-party ascon package: {line}",
+            )
+
+    def test_module_imports_with_the_standard_library_only(self):
+        """The module imports in isolated mode with site-packages disabled"""
+        script = (
+            "import json, sys\n"
+            f"sys.path.insert(0, {REPO_ROOT!r})\n"
+            "import ECC_Integration.ASCON_Encryption as module\n"
+            "names = sorted({name.split('.')[0] for name in sys.modules})\n"
+            "print(json.dumps({'file': module.__file__, 'modules': names}))\n"
+        )
+        completed = subprocess.run(
+            [sys.executable, "-I", "-S", "-c", script],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        self.assertEqual(
+            completed.returncode,
+            0,
+            "importing ECC_Integration.ASCON_Encryption without site-packages "
+            f"failed:\n{completed.stdout}\n{completed.stderr}",
+        )
+        payload = json.loads(completed.stdout.strip().splitlines()[-1])
+        self.assertEqual(
+            os.path.realpath(payload["file"]), os.path.realpath(ASCON_MODULE_PATH)
+        )
+        self.assertNotIn(
+            "ascon",
+            payload["modules"],
+            "the module pulled in a top-level package named 'ascon'",
+        )
+
 
 class TestECDSA(unittest.TestCase):
     """Test ECDSA authentication"""
@@ -198,6 +373,7 @@ class TestECDSA(unittest.TestCase):
         peer = self.ecdsa.load_peer_public_key(peer_pub)
         valid = self.ecdsa.verify_signature(peer, challenge, signature)
         self.assertTrue(valid)
+
 
 if __name__ == "__main__":
     unittest.main()

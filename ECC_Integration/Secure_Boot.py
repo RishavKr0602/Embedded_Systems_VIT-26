@@ -6,6 +6,7 @@ import hashlib
 import tempfile
 import os
 import json
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, utils
 from cryptography.hazmat.primitives import serialization
@@ -51,6 +52,11 @@ class SecureBoot:
         """
         Verify firmware signature
         Returns: (is_valid, firmware_hash)
+
+        A genuine signature mismatch returns (False, hash). Any other failure --
+        an unusable key, a malformed signature, a bad argument -- is a
+        configuration or programming error and propagates to the caller instead
+        of being reported as a mere verification failure.
         """
         if signature is None:
             signature = self.signature
@@ -63,9 +69,9 @@ class SecureBoot:
 
         try:
             public_key.verify(signature, self.firmware_hash, ec.ECDSA(hashes.SHA256()))
-            return True, self.firmware_hash
-        except Exception as e:
+        except InvalidSignature:
             return False, self.firmware_hash
+        return True, self.firmware_hash
 
     def load_signature_from_file(self):
         """Load signature from file"""

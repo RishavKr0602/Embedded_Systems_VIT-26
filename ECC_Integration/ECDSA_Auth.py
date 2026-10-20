@@ -1,11 +1,14 @@
 """
-ECDSA Authentication Module - Challenge-Response Protocol
+ECDSA Authentication Module - sign/verify primitives.
+
+The deployed node (``pi_node.py``) authenticates its peer by signing its
+handshake message with the pinned identity key directly, so this module is used
+only by the regression tests. It is kept as a small, standalone demonstration of
+ECDSA challenge-response.
 """
 
-import os
-import hashlib
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import ec, utils
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization
 
 class ECDSAAuthentication:

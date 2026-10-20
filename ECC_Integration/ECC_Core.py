@@ -98,4 +98,3 @@ class ECCCore:
         import gc
 
         gc.collect()
-        print("Sensitive data cleared from memory")

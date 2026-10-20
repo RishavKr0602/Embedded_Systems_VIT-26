@@ -221,5 +221,13 @@ __marimo__/
 #Logs
 secure_log_NODE_B.txt
 secure_log_NODE_A.txt
+
+# Provisioning output and generated key material
+# (a provision.py --output <other-dir> run must never leave these committable)
 deployment/
+*.pem
+*.sig
+*.key
+*.bin
+
 .DS_Store
