@@ -8,8 +8,7 @@ Key size:   128-bit (16 bytes)
 Nonce size: 128-bit (16 bytes)
 Tag size:   128-bit (16 bytes)
 
-NOTE: This is the Raspberry Pi (Python) implementation only.
-      The ESP32 requires a separate native C ASCON + mbedTLS port.
+This module is used by the Raspberry Pi deployment.
 """
 
 import os
@@ -127,74 +126,3 @@ class ASCONEncryption:
         """
         nonce, ciphertext, tag = self.encrypt(message.encode("utf-8"))
         return nonce, ciphertext, tag
-
-
-# ---------------------------------------------------------------------------
-# Demo
-# ---------------------------------------------------------------------------
-def demo_ascon():
-    """Demonstrate ASCON-128a authenticated encryption/decryption.
-
-    NOTE: Raspberry Pi (Python) implementation only.
-          ESP32 requires a native C ASCON + mbedTLS port.
-    """
-
-    print("=" * 60)
-    print("ASCON-128a Authenticated Encryption Demo")
-
-    # Create a 128-bit key (simulating derivation from HKDF)
-    session_key = os.urandom(16)
-
-    # Initialize encryption
-    crypto = ASCONEncryption(session_key)
-
-    # Message to encrypt
-    message = "Secure Boot: Firmware integrity verified. Session established."
-    print(f"\nOriginal Message: {message}")
-
-    # Step 10: Encrypt
-    print("\nStep 10: Encrypting with ASCON-128a...")
-    nonce, ciphertext, tag = crypto.encrypt(message.encode("utf-8"))
-    print(f"Nonce (16 B): {nonce.hex()[:16]}...")
-    print(f"Ciphertext:   {ciphertext.hex()[:32]}...")
-    print(f"Auth Tag:     {tag.hex()}")
-
-    # Step 11: Transmit (simulated)
-    print("\nStep 11: Transmitting encrypted data...")
-
-    # Step 12-13: Decrypt and verify
-    print("\nStep 12-13: Decrypting and verifying...")
-    try:
-        decrypted = crypto.decrypt(nonce, ciphertext, tag)
-        print(f"Decrypted Message: {decrypted.decode('utf-8')}")
-        print("✓ Authentication Tag Valid - Message Integrity Confirmed")
-    except ValueError as e:
-        print(f"✗ Decryption Failed: {e}")
-
-    # Tamper test — ciphertext
-    print("\n--- Tamper Test (ciphertext) ---")
-    tampered_ct = bytearray(ciphertext)
-    if len(tampered_ct) > 0:
-        tampered_ct[0] ^= 0x01
-    try:
-        crypto.decrypt(nonce, bytes(tampered_ct), tag)
-        print("✗ Error: Tampered data was accepted!")
-    except ValueError:
-        print("✓ Success: Tampered ciphertext rejected correctly!")
-
-    # Tamper test — tag
-    print("\n--- Tamper Test (auth tag) ---")
-    tampered_tag = bytearray(tag)
-    tampered_tag[0] ^= 0x01
-    try:
-        crypto.decrypt(nonce, ciphertext, bytes(tampered_tag))
-        print("✗ Error: Tampered tag was accepted!")
-    except ValueError:
-        print("✓ Success: Tampered tag rejected correctly!")
-
-    print("=" * 60)
-
-
-if __name__ == "__main__":
-    demo_ascon()
-
