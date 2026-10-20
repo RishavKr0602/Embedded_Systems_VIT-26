@@ -33,6 +33,43 @@ hardware-rooted secure bootloader or a production PKI. Keep the manufacturer
 signing key offline. Read [Limitations](#limitations) before presenting this as
 more than it is.
 
+## Architecture
+
+Each Pi runs its own self-contained node directory. The launcher verifies the
+signed artifact before executing it, so the artifact is the file that actually
+runs. The two nodes then talk directly over TCP; the manufacturer key is only
+needed offline, at provisioning time.
+
+```mermaid
+flowchart TB
+    subgraph OFF["Offline - development machine"]
+        MK["Manufacturer signing key"]
+        PROV["provision.py"]
+        MK --> PROV
+    end
+
+    subgraph PA["Raspberry Pi A - node pi-a"]
+        LA["secure_launcher.py"]
+        AA["pi_node.py<br/>signed artifact"]
+        LA -->|"verify, then execute"| AA
+    end
+
+    subgraph PB["Raspberry Pi B - node pi-b"]
+        LB["secure_launcher.py"]
+        AB["pi_node.py<br/>signed artifact"]
+        LB -->|"verify, then execute"| AB
+    end
+
+    PROV -->|"artifact + signature<br/>own identity key<br/>pinned peer public key"| PA
+    PROV -->|"artifact + signature<br/>own identity key<br/>pinned peer public key"| PB
+
+    AA <-->|"TCP 8765<br/>authenticated ECDH handshake,<br/>then ASCON-128a messages"| AB
+```
+
+Note what is *not* in that picture: no TPM, no measured boot, no hardware key
+store. The launcher is the root of trust and is itself unverified. See
+[Limitations](#limitations).
+
 ## Files used on the Pis
 
 | File | Purpose |
@@ -97,6 +134,28 @@ deployment/pi-a/
   ECC_Integration/          the package the artifact imports
   requirements.txt
 ```
+
+```mermaid
+flowchart TD
+    ART["pi_node.py<br/>artifact to deploy"] --> HASH["SHA-256 digest"]
+    HASH --> SIGN["ECDSA sign with the<br/>manufacturer private key"]
+    SIGN --> SIG["pi_node.py.sig"]
+
+    ART --> BUILD
+    SIG --> BUILD
+    MFPUB["manufacturer_public.pem<br/>trust anchor"] --> BUILD
+
+    BUILD["build each node directory"] --> NA & NB
+
+    NA["deployment/pi-a/<br/>identity_private.pem (own)<br/>peer_identity_public.pem (pi-b)<br/>artifact + signature + package"]
+    NB["deployment/pi-b/<br/>identity_private.pem (own)<br/>peer_identity_public.pem (pi-a)<br/>artifact + signature + package"]
+
+    MK["manufacturer private key"] -.->|"auto-generated: deleted after signing<br/>--manufacturer-key: kept offline"| SIGN
+```
+
+The two directories are **mirrored, not duplicated**: each one pins the *other*
+node's public key and holds only its own private key. That is what makes the
+mutual authentication meaningful.
 
 Without `--manufacturer-key`, a **new** manufacturer key is generated on every
 run and its private half is deleted as soon as the artifact is signed. Nothing
@@ -182,6 +241,35 @@ The wire carries JSON framing only for transport. The `nonce`, ciphertext,
 tag, sender, and sequence fields are transmitted; the plaintext and session
 key are not.
 
+The full exchange, in order:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as "Pi A - client"
+    participant B as "Pi B - server"
+
+    Note over A,B: Each side already verified its own signed artifact
+
+    A->>A: generate ephemeral P-256 keypair
+    A->>B: hello {version, node_id, ecdh_public_key, signature}
+    B->>B: verify signature against the PINNED pi-a key
+    B->>B: generate ephemeral P-256 keypair
+    B->>A: hello {version, node_id, ecdh_public_key, signature}
+    A->>A: verify signature against the PINNED pi-b key
+
+    Note over A,B: salt = SHA-256(canonical transcript of BOTH hellos)
+    Note over A,B: session_key = HKDF-SHA256(ECDH secret, salt, info)[0:16]
+
+    A->>B: packet seq=1 + nonce, ciphertext, tag
+    Note right of B: header fields are the AAD,<br/>ASCON tag verified before<br/>any plaintext is released
+    B->>B: decrypt and print plaintext
+    B->>A: packet seq=1 + nonce, ciphertext, tag
+    A->>A: decrypt and print reply
+
+    Note over A,B: session key and ECDH state are zeroized
+```
+
 ## 5. Show tamper detection
 
 Start Pi B as above, then run Pi A with `--tamper`:
@@ -202,6 +290,28 @@ failure, and the client reports that the peer rejected the packet. This is the
 live proof that changing ciphertext in transit is detected. **Start a fresh
 server for the normal run afterward**, because the server serves one connection.
 
+The receiving node checks each layer in turn, and releases no plaintext until
+every one of them passes:
+
+```mermaid
+flowchart TD
+    T["client runs with --tamper<br/>flips one ciphertext bit"] --> RX["server receives the frame"]
+    RX --> FIELDS{"exact field set,<br/>types and version?"}
+    FIELDS -- no --> R1["reject: malformed packet"]
+    FIELDS -- yes --> SENDER{"sender is the<br/>authenticated peer?"}
+    SENDER -- no --> R2["reject: unexpected sender"]
+    SENDER -- yes --> SEQ{"sequence == expected?"}
+    SEQ -- no --> R3["reject: replayed or out-of-order"]
+    SEQ -- yes --> TAG{"ASCON tag verifies over<br/>AAD and ciphertext?"}
+    TAG -- no --> R4["reject: ASCON integrity failure<br/>session terminated"]
+    TAG -- yes --> OK["release the plaintext"]
+
+    R1 --> NOP["no plaintext is ever printed"]
+    R2 --> NOP
+    R3 --> NOP
+    R4 --> NOP
+```
+
 ## 6. Show that a modified artifact does not start
 
 Flip a byte in one node's artifact and try to launch it:
@@ -215,6 +325,26 @@ python secure_launcher.py --config ~/ecc-secure-node --role client \
 The launcher prints `{"event": "secure_boot", "status": "FAIL", ...}` on stderr
 and exits non-zero **without opening a socket**. Restore the artifact from
 `deployment/` afterwards.
+
+## How the secure boot check works
+
+The launcher is a small bootstrap that verifies the artifact and only then
+executes it. Because the artifact is what actually runs, the check is real
+rather than decorative — a modified artifact never reaches the network.
+
+```mermaid
+flowchart TD
+    S(["python secure_launcher.py --config DIR ..."]) --> R["read DIR/node.json"]
+    R --> RES["resolve artifact, signature<br/>and manufacturer public key"]
+    RES --> HAVE{"all three files present?"}
+    HAVE -- no --> F["print secure_boot FAIL<br/>to stderr"]
+    HAVE -- yes --> V{"ECDSA signature over the<br/>artifact SHA-256 verifies?"}
+    V -- no --> F
+    V -- yes --> P["print secure_boot PASS<br/>and the artifact SHA-256"]
+    P --> X["execute the artifact,<br/>forwarding --config"]
+    X --> N["the node opens its socket"]
+    F --> STOP["exit 1<br/>no socket is ever opened"]
+```
 
 ## Protocol details
 
@@ -234,6 +364,18 @@ and exits non-zero **without opening a socket**. Restore the artifact from
 - Malformed, oversized, or hostile input is rejected with a clean JSON error;
   it never produces a traceback.
 - TCP is used only as a transport. It does not provide the security claims.
+
+What each message carries, and which parts are protected:
+
+```mermaid
+flowchart LR
+    PT["plaintext"] --> ENC["ASCON-128a"]
+    KEY["session key, 16 B<br/>derived, never transmitted"] --> ENC
+    NON["nonce, 16 B<br/>fresh random value per message"] --> ENC
+    AAD["header: version, type,<br/>sender, sequence<br/>sent in clear but authenticated"] --> ENC
+    ENC --> CT["ciphertext<br/>the only encrypted part"]
+    ENC --> TAG["tag, 16 B<br/>covers the AAD and the ciphertext"]
+```
 
 ## Command-line reference
 
