@@ -74,8 +74,7 @@ class ECCCore:
         Step 9: HKDF-SHA256 to derive 128-bit ASCON session key
         HKDF = HMAC-based Extract-and-Expand Key Derivation Function
 
-        NOTE: Raspberry Pi (Python) implementation only.
-              ESP32 requires a native C ASCON + mbedTLS port.
+        The derived key is sized for the Pi deployment's ASCON-128a layer.
         """
         if salt is None:
             salt = b"ecc_secure_boot_salt_2026"
@@ -100,57 +99,3 @@ class ECCCore:
 
         gc.collect()
         print("Sensitive data cleared from memory")
-
-
-# Standalone ECDH Demo
-def demo_ecdh_exchange():
-    """Demonstrate complete ECDH key exchange between two nodes"""
-
-    print("=" * 60)
-    print("NODE A: Generating keypair...")
-    node_a = ECCCore()
-    node_a.generate_keypair()
-    print(f"Node A Private Key: {node_a.private_key.private_numbers().private_value}")  # type: ignore
-
-    print("\nNODE B: Generating keypair...")
-    node_b = ECCCore()
-    node_b.generate_keypair()
-    print(f"Node B Private Key: {node_b.private_key.private_numbers().private_value}")  # type: ignore
-
-    # Step 6: Exchange public keys
-    print("\nStep 6: Exchanging public keys...")
-    pub_a_bytes = node_a.get_public_key_bytes()
-    pub_b_bytes = node_b.get_public_key_bytes()
-
-    # Step 7: Compute shared secrets
-    print("\nStep 7: Computing shared secrets...")
-    peer_pub_for_a = node_a.load_peer_public_key(pub_b_bytes)  # A needs B's public key
-    peer_pub_for_b = node_b.load_peer_public_key(pub_a_bytes)  # B needs A's public key
-
-    shared_a = node_a.compute_shared_secret(peer_pub_for_a)
-    shared_b = node_b.compute_shared_secret(peer_pub_for_b)
-
-    # Step 8: Verify equality
-    print(f"\nStep 8: Shared Secret A: {shared_a.hex()[:32]}...")
-    print(f"Shared Secret B: {shared_b.hex()[:32]}...")
-    print(f"Secrets Match: {shared_a == shared_b}")
-
-    # Step 9: Derive session key
-    print("\nStep 9: Deriving session keys...")
-    key_a = node_a.derive_session_key(shared_a)
-    key_b = node_b.derive_session_key(shared_b)
-    print(f"Session Key A: {key_a.hex()[:32]}...")
-    print(f"Session Key B: {key_b.hex()[:32]}...")
-    print(f"Keys Match: {key_a == key_b}")
-
-    # Step 15: Clear sensitive data
-    print("\nStep 15: Clearing sensitive data...")
-    node_a.clear_sensitive_data()
-    node_b.clear_sensitive_data()
-
-    print("=" * 60)
-    return node_a, node_b, key_a, key_b
-
-
-if __name__ == "__main__":
-    demo_ecdh_exchange()

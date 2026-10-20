@@ -2,8 +2,7 @@
 Complete Secure Communication Pipeline
 Integrates: ECDH + HKDF + ASCON-128a + ECDSA
 
-NOTE: This is the Raspberry Pi (Python) implementation only.
-      The ESP32 requires a separate native C ASCON + mbedTLS port.
+This module contains the reusable Pi-side cryptographic operations.
 """
 
 import os
@@ -129,93 +128,3 @@ class SecureCommunicationNode:
             "authenticated": self.is_authenticated,
             "session_key_exists": self.session_key is not None,
         }
-
-
-def demo_complete_secure_pipeline():
-    """Demonstrate complete secure communication pipeline"""
-
-    print("=" * 70)
-    print("COMPLETE SECURE COMMUNICATION PIPELINE DEMO")
-    print("ECC + ECDH + HKDF + ASCON-128a + ECDSA")
-    print("=" * 70)
-
-    # Initialize nodes
-    print("\n[INIT] Creating and initializing nodes...")
-    node_a = SecureCommunicationNode("NODE_A")
-    node_b = SecureCommunicationNode("NODE_B")
-    node_a.initialize()
-    node_b.initialize()
-
-    # Step 3-5: Key Generation (done in initialize)
-    print("\n[KEYGEN] Keys generated on both nodes")
-
-    # Step 6: Exchange public keys
-    print("\n[EXCHANGE] Exchanging public keys...")
-    ecdh_pub_a = node_a.get_ecdh_public_key()
-    ecdh_pub_b = node_b.get_ecdh_public_key()
-    ecdsa_pub_a = node_a.get_ecdsa_public_key()
-    ecdsa_pub_b = node_b.get_ecdsa_public_key()
-
-    # Step 7-9: ECDH + HKDF
-    print("\n[ECDH] Performing ECDH key exchange...")
-    session_key_a = node_a.perform_ecdh_exchange(ecdh_pub_b)
-    session_key_b = node_b.perform_ecdh_exchange(ecdh_pub_a)
-
-    print(f"Session Key A: {session_key_a.hex()[:32]}...")  # type: ignore
-    print(f"Session Key B: {session_key_b.hex()[:32]}...")  # type: ignore
-    print(f"Keys match: {session_key_a == session_key_b}")
-
-    # Step: Mutual authentication with ECDSA
-    print("\n[AUTH] Performing mutual authentication...")
-
-    # Node A challenges Node B
-    challenge_a = os.urandom(32)
-    signature_b = node_b.sign_challenge(challenge_a)
-    auth_b = node_a.authenticate_peer(ecdsa_pub_b, challenge_a, signature_b)
-
-    # Node B challenges Node A
-    challenge_b = os.urandom(32)
-    signature_a = node_a.sign_challenge(challenge_b)
-    auth_a = node_b.authenticate_peer(ecdsa_pub_a, challenge_b, signature_a)
-
-    if auth_a and auth_b:
-        print("\n✓ Mutual authentication successful!")
-    else:
-        print("\n✗ Mutual authentication failed!")
-        return
-
-    # Step 10-13: Encrypted message exchange
-    print("\n[COMM] Sending encrypted message...")
-
-    # Node A sends a message to Node B
-    plaintext = "Secure Boot: All systems operational. Firmware version 2.1.0 verified."
-    print(f"\nOriginal Message (Node A → Node B): {plaintext}")
-
-    nonce, ciphertext, tag = node_a.encrypt_message(plaintext)
-    print(f"\nEncrypted (Node A):")
-    print(f"  Nonce: {nonce.hex()[:20]}...")
-    print(f"  Ciphertext: {ciphertext.hex()[:30]}...")
-    print(f"  Auth Tag: {tag.hex()[:16]}...")
-
-    # Node B decrypts
-    decrypted = node_b.decrypt_message(nonce, ciphertext, tag)
-    print(f"\nDecrypted (Node B): {decrypted.decode('utf-8')}")
-
-    # Node B replies
-    reply = "Acknowledged: Secure channel established. Ready for data."
-    nonce2, ciphertext2, tag2 = node_b.encrypt_message(reply)
-    decrypted2 = node_a.decrypt_message(nonce2, ciphertext2, tag2)
-    print(f"\nReply (Node B → Node A): {decrypted2.decode('utf-8')}")
-
-    # Step 15: Clear secure memory
-    print("\n[CLEANUP] Clearing secure memory...")
-    node_a.clear_secure_memory()
-    node_b.clear_secure_memory()
-
-    print("\n" + "=" * 70)
-    print("✓ Secure communication pipeline complete!")
-    print("=" * 70)
-
-
-if __name__ == "__main__":
-    demo_complete_secure_pipeline()

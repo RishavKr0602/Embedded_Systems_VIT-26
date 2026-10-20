@@ -221,3 +221,5 @@ __marimo__/
 #Logs
 secure_log_NODE_B.txt
 secure_log_NODE_A.txt
+deployment/
+.DS_Store
